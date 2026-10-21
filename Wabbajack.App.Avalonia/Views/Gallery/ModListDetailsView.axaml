@@ -146,7 +146,14 @@
                                 Icon="ArrowDownload" Width="NaN"
                                 Command="{Binding MetadataVM.InstallCommand}"
                                 ProgressPercentage="{Binding MetadataVM.ProgressPercent}"
-                                IsVisible="{Binding !MetadataVM.IsBroken}" />
+                                IsVisible="{Binding ShowInstall}" />
+                    <!-- In place of Install while Merge lists is choosing a list from the gallery. -->
+                    <c:WJButton x:Name="UseForMergeButton" ButtonStyle="Progress" Grid.Row="2" Grid.ColumnSpan="5"
+                                Icon="BranchFork" Width="NaN" Text="Use for merge"
+                                AutomationProperties.AutomationId="UseForMergeButton"
+                                Command="{Binding UseForMergeCommand}"
+                                ProgressPercentage="{Binding MetadataVM.ProgressPercent}"
+                                IsVisible="{Binding ShowUseForMerge}" />
                     <Border x:Name="UnavailableDescription" Grid.Row="2" Grid.ColumnSpan="5"
                             Background="{StaticResource UnavailableDarkBrush}" BorderBrush="{StaticResource UnavailableBrush}"
                             BorderThickness="2" Padding="8" CornerRadius="4"

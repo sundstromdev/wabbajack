@@ -14,7 +14,8 @@ public enum ScreenType
     CompilerMain,
     ModListDetails,
     Settings,
-    Info
+    Info,
+    Merge
 }
 
 /// <summary>

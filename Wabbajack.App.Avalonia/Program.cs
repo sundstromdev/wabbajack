@@ -15,6 +15,7 @@ using Wabbajack.App.Avalonia.ViewModels.Common;
 using Wabbajack.App.Avalonia.ViewModels.Compiler;
 using Wabbajack.App.Avalonia.ViewModels.Gallery;
 using Wabbajack.App.Avalonia.ViewModels.Installers;
+using Wabbajack.App.Avalonia.ViewModels.Merge;
 using Wabbajack.App.Avalonia.ViewModels.Settings;
 using Wabbajack.Common;
 using Wabbajack.DTOs;
@@ -126,9 +127,11 @@ public static class Program
 
         services.AddSingleton<Navigator>();
         services.AddSingleton<MainWindowVM>();
+        services.AddSingleton<MergeListPicker>();
         services.AddTransient<HomeVM>();
         services.AddTransient<SettingsVM>();
         services.AddTransient<CompilerHomeVM>();
+        services.AddTransient<MergeVM>();
         // Transient, as in WPF; MainWindowVM holds the one CompilerMainVM, which holds its own details and file tree.
         services.AddTransient<CompilerDetailsVM>();
         services.AddTransient<CompilerFileManagerVM>();

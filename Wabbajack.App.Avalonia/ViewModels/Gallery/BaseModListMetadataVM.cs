@@ -147,6 +147,17 @@ public partial class BaseModListMetadataVM : ViewModel
         ShowFloatingWindow.Send(FloatingScreenType.None);
     }
 
+    /// <summary>Where the gallery keeps this list's Wabbajack file once downloaded.</summary>
+    public AbsolutePath ModListPath => _maintainer.ModListPath(Metadata);
+
+    /// <summary>Downloads the list's Wabbajack file if the current one is not already here; true once it is.</summary>
+    public async Task<bool> EnsureDownloaded()
+    {
+        if (!await _maintainer.HaveModList(Metadata))
+            await Download();
+        return await _maintainer.HaveModList(Metadata);
+    }
+
     protected async Task Download()
     {
         try

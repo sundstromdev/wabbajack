@@ -101,7 +101,18 @@
         </ScrollViewer>
 
         <!-- Tiles. WPF's VirtualizingWrapPanel put a row's spare width at its two ends; a centred wrap panel does the same. -->
-        <Border Grid.Column="1" Margin="0,0,0,-16">
+        <DockPanel Grid.Column="1">
+        <!-- While Merge lists is choosing a list here: what to do, and the way back. -->
+        <Border DockPanel.Dock="Top" Margin="8,0,8,12" Padding="12,8" CornerRadius="8"
+                Background="{StaticResource ComplementaryPrimary16Brush}" IsVisible="{Binding MergePicker.IsPicking}">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <ic:SymbolIcon Symbol="BranchFork" FontSize="20" VerticalAlignment="Center" Margin="0,0,10,0" />
+                <TextBlock Grid.Column="1" VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding MergePicker.Prompt}" />
+                <c:WJButton Grid.Column="2" Margin="12,0,0,0" Icon="Dismiss" Text="Cancel"
+                            AutomationProperties.AutomationId="CancelMergePick" Command="{Binding CancelMergePickCommand}" />
+            </Grid>
+        </Border>
+        <Border Margin="0,0,0,-16">
             <ScrollViewer x:Name="TileScroller" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
                           IsEnabled="{Binding !IsResolvingProtocol}">
                 <ItemsControl ItemsSource="{Binding ModLists}" HorizontalAlignment="Center">
@@ -118,6 +129,7 @@
                 </ItemsControl>
             </ScrollViewer>
         </Border>
+        </DockPanel>
 
         <c:ProgressRing x:Name="LoadingRing" Grid.Column="1" Width="60" Height="60" Foreground="#CCD8BAF8" IsVisible="False" />
 
