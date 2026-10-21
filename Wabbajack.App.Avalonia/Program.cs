@@ -127,6 +127,7 @@ public static class Program
 
         services.AddSingleton<Navigator>();
         services.AddSingleton<MainWindowVM>();
+        services.AddSingleton<MergeListPicker>();
         services.AddTransient<HomeVM>();
         services.AddTransient<SettingsVM>();
         services.AddTransient<CompilerHomeVM>();

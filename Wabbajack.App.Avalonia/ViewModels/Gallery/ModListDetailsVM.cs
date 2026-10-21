@@ -12,6 +12,7 @@ using ReactiveUI;
 using ReactiveUI.SourceGenerators;
 using Wabbajack.App.Avalonia.Interfaces;
 using Wabbajack.App.Avalonia.Messages;
+using Wabbajack.App.Avalonia.Services;
 using Wabbajack.App.Avalonia.Util;
 using Wabbajack.Common;
 using Wabbajack.DTOs;
@@ -40,11 +41,40 @@ public partial class ModListDetailsVM : ViewModel, IClosableVM
     public ICommand OpenDiscordCommand { get; }
     public ICommand OpenReadmeCommand { get; }
     public ICommand CloseCommand { get; }
+    public ICommand UseForMergeCommand { get; }
 
-    public ModListDetailsVM(ILogger<ModListDetailsVM> logger, Client wjClient)
+    /// <summary>Set while Merge lists has borrowed the gallery to choose a list.</summary>
+    public MergeListPicker MergePicker { get; }
+
+    [Reactive] public partial bool ShowInstall { get; private set; } = true;
+    [Reactive] public partial bool ShowUseForMerge { get; private set; }
+
+    public ModListDetailsVM(ILogger<ModListDetailsVM> logger, Client wjClient, MergeListPicker mergePicker, Navigator navigator)
     {
         _logger = logger;
         _wjClient = wjClient;
+        MergePicker = mergePicker;
+
+        this.WhenAnyValue(x => x.MergePicker.IsPicking, x => x.MetadataVM.IsBroken)
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(t =>
+            {
+                ShowInstall = !t.Item1 && !t.Item2;
+                ShowUseForMerge = t.Item1 && !t.Item2;
+            })
+            .DisposeWith(CompositeDisposable);
+
+        UseForMergeCommand = ReactiveCommand.CreateFromTask(async () =>
+            {
+                var list = MetadataVM;
+                if (!await list.EnsureDownloaded()) return;
+                ShowFloatingWindow.Send(FloatingScreenType.None);
+                MergePicker.Pick(list.ModListPath);
+                navigator.NavigateTo(ScreenType.Merge);
+            },
+            this.WhenAnyValue(x => x.MetadataVM.IsBroken, x => x.MetadataVM.Status,
+                    (broken, status) => !broken && status != BaseModListMetadataVM.ModListStatus.Downloading)
+                .ObserveOn(RxApp.MainThreadScheduler));
 
         MessageBus.Current.Listen<LoadModlistForDetails>()
             .Subscribe(msg => MetadataVM = msg.MetadataVM)

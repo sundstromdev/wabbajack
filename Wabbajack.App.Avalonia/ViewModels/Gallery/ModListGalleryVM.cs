@@ -154,12 +154,22 @@ public partial class ModListGalleryVM : ViewModel, ICanLoadLocalFileVM
     public ICommand ResetFiltersCommand { get; set; }
     public ICommand LoadLocalFileCommand { get; set; }
 
+    /// <summary>Set while Merge lists has borrowed the gallery to choose a list.</summary>
+    public MergeListPicker MergePicker { get; }
+    public ICommand CancelMergePickCommand { get; }
+
     private readonly Navigator _navigator;
 
     public ModListGalleryVM(ILogger<ModListGalleryVM> logger, Client wjClient, GameLocator locator,
         SettingsManager settingsManager, ModListDownloadMaintainer maintainer, CancellationToken cancellationToken, IServiceProvider serviceProvider,
-        GameIconCache gameIcons, FilePicker picker, Navigator navigator)
+        GameIconCache gameIcons, FilePicker picker, Navigator navigator, MergeListPicker mergePicker)
     {
+        MergePicker = mergePicker;
+        CancelMergePickCommand = ReactiveCommand.Create(() =>
+        {
+            mergePicker.Cancel();
+            navigator.NavigateTo(ScreenType.Merge);
+        });
         var searchThrottle = TimeSpan.FromSeconds(0.35);
         _wjClient = wjClient;
         _logger = logger;
