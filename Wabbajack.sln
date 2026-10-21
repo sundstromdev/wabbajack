@@ -143,6 +143,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wabbajack.App.Avalonia.Test
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wabbajack.Launcher.Test", "Wabbajack.Launcher.Test\Wabbajack.Launcher.Test.csproj", "{4CB5FACC-1738-49C3-901D-5149F68D0CB6}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wabbajack.Merge", "Wabbajack.Merge\Wabbajack.Merge.csproj", "{20B40714-0BFB-481D-9CF0-B6E9E1FD557E}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wabbajack.Merge.Test", "Wabbajack.Merge.Test\Wabbajack.Merge.Test.csproj", "{B533FBD5-2464-42A5-BE42-901074ED143E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -885,6 +889,30 @@ Global
 		{4CB5FACC-1738-49C3-901D-5149F68D0CB6}.Release|x64.Build.0 = Release|Any CPU
 		{4CB5FACC-1738-49C3-901D-5149F68D0CB6}.Release|x86.ActiveCfg = Release|Any CPU
 		{4CB5FACC-1738-49C3-901D-5149F68D0CB6}.Release|x86.Build.0 = Release|Any CPU
+		{20B40714-0BFB-481D-9CF0-B6E9E1FD557E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{20B40714-0BFB-481D-9CF0-B6E9E1FD557E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{20B40714-0BFB-481D-9CF0-B6E9E1FD557E}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{20B40714-0BFB-481D-9CF0-B6E9E1FD557E}.Debug|x64.Build.0 = Debug|Any CPU
+		{20B40714-0BFB-481D-9CF0-B6E9E1FD557E}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{20B40714-0BFB-481D-9CF0-B6E9E1FD557E}.Debug|x86.Build.0 = Debug|Any CPU
+		{20B40714-0BFB-481D-9CF0-B6E9E1FD557E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{20B40714-0BFB-481D-9CF0-B6E9E1FD557E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{20B40714-0BFB-481D-9CF0-B6E9E1FD557E}.Release|x64.ActiveCfg = Release|Any CPU
+		{20B40714-0BFB-481D-9CF0-B6E9E1FD557E}.Release|x64.Build.0 = Release|Any CPU
+		{20B40714-0BFB-481D-9CF0-B6E9E1FD557E}.Release|x86.ActiveCfg = Release|Any CPU
+		{20B40714-0BFB-481D-9CF0-B6E9E1FD557E}.Release|x86.Build.0 = Release|Any CPU
+		{B533FBD5-2464-42A5-BE42-901074ED143E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B533FBD5-2464-42A5-BE42-901074ED143E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B533FBD5-2464-42A5-BE42-901074ED143E}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B533FBD5-2464-42A5-BE42-901074ED143E}.Debug|x64.Build.0 = Debug|Any CPU
+		{B533FBD5-2464-42A5-BE42-901074ED143E}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B533FBD5-2464-42A5-BE42-901074ED143E}.Debug|x86.Build.0 = Debug|Any CPU
+		{B533FBD5-2464-42A5-BE42-901074ED143E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B533FBD5-2464-42A5-BE42-901074ED143E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B533FBD5-2464-42A5-BE42-901074ED143E}.Release|x64.ActiveCfg = Release|Any CPU
+		{B533FBD5-2464-42A5-BE42-901074ED143E}.Release|x64.Build.0 = Release|Any CPU
+		{B533FBD5-2464-42A5-BE42-901074ED143E}.Release|x86.ActiveCfg = Release|Any CPU
+		{B533FBD5-2464-42A5-BE42-901074ED143E}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -45,10 +45,14 @@ public static class CommandLineBuilderExtensions
         services.AddSingleton<ListGames>();
         CommandLineBuilder.RegisterCommand<ListModlists>(ListModlists.Definition, c => ((ListModlists)c).Run);
         services.AddSingleton<ListModlists>();
+        CommandLineBuilder.RegisterCommand<MergeModlists>(MergeModlists.Definition, c => ((MergeModlists)c).Run);
+        services.AddSingleton<MergeModlists>();
         CommandLineBuilder.RegisterCommand<MirrorFile>(MirrorFile.Definition, c => ((MirrorFile)c).Run);
         services.AddSingleton<MirrorFile>();
         CommandLineBuilder.RegisterCommand<ModlistReport>(ModlistReport.Definition, c => ((ModlistReport)c).Run);
         services.AddSingleton<ModlistReport>();
+        CommandLineBuilder.RegisterCommand<PlanMerge>(PlanMerge.Definition, c => ((PlanMerge)c).Run);
+        services.AddSingleton<PlanMerge>();
         CommandLineBuilder.RegisterCommand<RepairGameFiles>(RepairGameFiles.Definition, c => ((RepairGameFiles)c).Run);
         services.AddSingleton<RepairGameFiles>();
         CommandLineBuilder.RegisterCommand<Reset>(Reset.Definition, c => ((Reset)c).Run);
