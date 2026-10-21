@@ -332,10 +332,15 @@ public class ModlistMergerTests
     {
         var (b, o) = Lists();
         var (_, report) = await ModlistMerger.Merge(b, o, Rules());
-        var c = Assert.Single(report.Conflicts);
-        Assert.Equal(@"bin\x64\plugins\cyber_engine_tweaks\mods\NoPaperBags\init.lua", c.Path);
+        Assert.Equal(2, report.Conflicts.Count);
+        var c = report.Conflicts.Single(x => x.Path == @"bin\x64\plugins\cyber_engine_tweaks\mods\NoPaperBags\init.lua");
         Assert.Equal("No Paper Bags", c.Winner);
         Assert.Equal(new[] { "Classic Drinks" }, c.Losers);
+
+        // Both lists ship a Mod Settings user.ini; the base's config mod sits above the block, so it wins.
+        var ini = report.Conflicts.Single(x => x.Path == @"red4ext\plugins\mod_settings\user.ini");
+        Assert.Equal("Gameplay Config", ini.Winner);
+        Assert.Equal(new[] { "Config Files" }, ini.Losers);
     }
 
     [Fact]

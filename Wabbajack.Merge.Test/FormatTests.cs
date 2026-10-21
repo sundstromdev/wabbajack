@@ -64,7 +64,7 @@ public class MergePlannerTests
         Assert.Equal(new[] { "Nova" }, rules.Include.Mods);
         Assert.Equal("PU ", rules.SeparatorPrefix);
         Assert.NotNull(rules.CyberpunkArchiveLoadOrder);
-        Assert.Contains("[shared] CET", plan);
+        Assert.Contains("[shared] [CET](https://www.nexusmods.com/cyberpunk2077/mods/107)", plan);
         Assert.Contains("[duplicate of Map Fix]", plan);
         Assert.Contains("`Core_separator`", plan);
 
