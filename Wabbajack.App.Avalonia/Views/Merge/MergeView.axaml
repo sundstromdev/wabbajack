@@ -31,7 +31,7 @@
         </Style>
     </UserControl.Styles>
 
-    <Grid ColumnDefinitions="400,16,*">
+    <Grid ColumnDefinitions="440,16,*">
         <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="0,0,8,0">
                 <TextBlock FontSize="22" FontWeight="Bold" Text="Merge lists" />
@@ -43,8 +43,12 @@
                     <Border Classes="box">
                         <TextBlock Text="{Binding BaseTitle}" TextWrapping="Wrap" />
                     </Border>
-                    <c:WJButton Grid.Column="1" Margin="8,0,0,0" Icon="FolderOpen" Text="Choose"
-                                AutomationProperties.AutomationId="PickBaseButton" Command="{Binding PickBaseCommand}" />
+                    <StackPanel Grid.Column="1" Margin="8,0,0,0" Orientation="Horizontal" Spacing="8">
+                        <c:WJButton Icon="Globe" Text="Browse" ToolTip.Tip="Choose a list from the Wabbajack gallery"
+                                    AutomationProperties.AutomationId="BrowseBaseButton" Command="{Binding BrowseBaseCommand}" />
+                        <c:WJButton Icon="FolderOpen" Text="File" ToolTip.Tip="Choose a .wabbajack file on this PC"
+                                    AutomationProperties.AutomationId="PickBaseButton" Command="{Binding PickBaseCommand}" />
+                    </StackPanel>
                 </Grid>
 
                 <TextBlock Classes="title" Text="Overlay list" />
@@ -52,8 +56,12 @@
                     <Border Classes="box">
                         <TextBlock Text="{Binding OverlayTitle}" TextWrapping="Wrap" />
                     </Border>
-                    <c:WJButton Grid.Column="1" Margin="8,0,0,0" Icon="FolderOpen" Text="Choose"
-                                AutomationProperties.AutomationId="PickOverlayButton" Command="{Binding PickOverlayCommand}" />
+                    <StackPanel Grid.Column="1" Margin="8,0,0,0" Orientation="Horizontal" Spacing="8">
+                        <c:WJButton Icon="Globe" Text="Browse" ToolTip.Tip="Choose a list from the Wabbajack gallery"
+                                    AutomationProperties.AutomationId="BrowseOverlayButton" Command="{Binding BrowseOverlayCommand}" />
+                        <c:WJButton Icon="FolderOpen" Text="File" ToolTip.Tip="Choose a .wabbajack file on this PC"
+                                    AutomationProperties.AutomationId="PickOverlayButton" Command="{Binding PickOverlayCommand}" />
+                    </StackPanel>
                 </Grid>
 
                 <TextBlock Classes="title" Text="Overlay profile" />
@@ -112,7 +120,7 @@
             </StackPanel>
         </ScrollViewer>
 
-        <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*">
+        <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*" IsVisible="{Binding !GalleryOpen}">
             <Grid ColumnDefinitions="*,Auto,Auto,Auto">
                 <TextBox Watermark="Filter mods…" Text="{Binding Filter}" AutomationProperties.AutomationId="ModFilter" />
                 <CheckBox Grid.Column="1" Margin="12,0,0,0" IsChecked="{Binding OnlyNew}">
@@ -145,6 +153,46 @@
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
+        </Grid>
+
+        <!-- The gallery picker: every list Wabbajack offers, by game, in place of the mod list while choosing. -->
+        <Grid Grid.Column="2" RowDefinitions="Auto,Auto,Auto,*,Auto" IsVisible="{Binding GalleryOpen}">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock FontSize="18" FontWeight="Bold" VerticalAlignment="Center" Text="{Binding GalleryTitle}" />
+                <c:WJButton Grid.Column="1" Icon="Dismiss" Text="Close" Command="{Binding CloseGalleryCommand}" />
+            </Grid>
+            <Grid Grid.Row="1" Margin="0,12,0,0" ColumnDefinitions="*,12,260">
+                <TextBox Watermark="Search lists by name or author…" Text="{Binding GallerySearch}"
+                         AutomationProperties.AutomationId="GallerySearch" />
+                <ComboBox Grid.Column="2" HorizontalAlignment="Stretch" ItemsSource="{Binding Games}"
+                          SelectedItem="{Binding SelectedGame}" AutomationProperties.AutomationId="GalleryGame">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:GameChoice">
+                            <TextBlock Text="{Binding Name}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </Grid>
+            <TextBlock Grid.Row="2" Classes="hint" Margin="0,8" Text="{Binding GalleryStatus}"
+                       IsVisible="{Binding GalleryStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            <ListBox Grid.Row="3" Margin="0,8,0,0" ItemsSource="{Binding GalleryLists}" Background="Transparent"
+                     SelectedItem="{Binding SelectedGalleryList}" AutomationProperties.AutomationId="GalleryLists">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:GalleryListItem">
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,4">
+                            <StackPanel>
+                                <TextBlock FontWeight="SemiBold" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Classes="hint" Text="{Binding Details}" TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                            <TextBlock Grid.Column="1" Classes="hint" VerticalAlignment="Center" Margin="12,0,0,0"
+                                       Text="{Binding State}" />
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+            <c:WJButton Grid.Row="4" Margin="0,12,0,0" HorizontalAlignment="Right" ButtonStyle="Color" Icon="ArrowDownload"
+                        Text="Use this list" ToolTip.Tip="Downloads the list's Wabbajack file if needed (not its mods)"
+                        AutomationProperties.AutomationId="UseGalleryList" Command="{Binding UseGalleryListCommand}" />
         </Grid>
     </Grid>
 </rxui:ReactiveUserControl>

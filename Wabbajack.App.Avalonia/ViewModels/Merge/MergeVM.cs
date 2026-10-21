@@ -5,19 +5,38 @@ using System.Linq;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.Extensions.Logging;
 using ReactiveUI;
 using ReactiveUI.SourceGenerators;
 using Wabbajack.App.Avalonia.Services;
+using Wabbajack.Common;
 using Wabbajack.DTOs;
 using Wabbajack.DTOs.JsonConverters;
 using Wabbajack.Merge;
 using Wabbajack.Paths;
 using Wabbajack.Paths.IO;
+using Wabbajack.Networking.WabbajackClientApi;
+using Wabbajack.Services.OSIntegrated.Services;
 
 namespace Wabbajack.App.Avalonia.ViewModels.Merge;
+
+/// <summary>A list from the Wabbajack gallery, as the merge screen's picker shows it.</summary>
+public sealed record GalleryListItem(ModlistMetadata Metadata, bool Downloaded)
+{
+    public string Title => Metadata.Title;
+
+    public string Details =>
+        $"by {Metadata.Author}" + (Metadata.Version != null ? $" · v{Metadata.Version}" : "") +
+        (Metadata.DownloadMetadata != null ? $" · {Metadata.DownloadMetadata.SizeOfArchives / 1e9:0.0} GB of mods" : "") +
+        (Metadata.Official ? " · featured" : "");
+
+    public string State => Downloaded ? "downloaded" : "";
+}
+
+public sealed record GameChoice(Game? Game, string Name);
 
 public sealed record AnchorItem(string Name, bool IsSeparator)
 {
@@ -35,19 +54,37 @@ public partial class MergeVM : ViewModel
     private readonly ILogger<MergeVM> _logger;
     private readonly DTOSerializer _dtos;
     private readonly FilePicker _picker;
+    private readonly Client _wjClient;
+    private readonly ModListDownloadMaintainer _maintainer;
+    private readonly CancellationToken _token;
+    private List<ModlistMetadata> _gallery = new();
     private ModlistPackage? _base;
     private ModlistPackage? _overlay;
     private MergeRules? _template;
     private List<MergeModRowVM> _allRows = new();
 
-    public MergeVM(ILogger<MergeVM> logger, DTOSerializer dtos, FilePicker picker)
+    public MergeVM(ILogger<MergeVM> logger, DTOSerializer dtos, FilePicker picker, Client wjClient,
+        ModListDownloadMaintainer maintainer, CancellationToken token)
     {
         _logger = logger;
         _dtos = dtos;
         _picker = picker;
+        _wjClient = wjClient;
+        _maintainer = maintainer;
+        _token = token;
 
         PickBaseCommand = ReactiveCommand.CreateFromTask(() => PickList(true));
         PickOverlayCommand = ReactiveCommand.CreateFromTask(() => PickList(false));
+        BrowseBaseCommand = ReactiveCommand.CreateFromTask(() => OpenGallery(true));
+        BrowseOverlayCommand = ReactiveCommand.CreateFromTask(() => OpenGallery(false));
+        CloseGalleryCommand = ReactiveCommand.Create(() => { GalleryOpen = false; });
+        UseGalleryListCommand = ReactiveCommand.CreateFromTask(() => UseGalleryList(SelectedGalleryList!),
+            this.WhenAnyValue(x => x.IsBusy, x => x.SelectedGalleryList, (busy, selected) => !busy && selected != null));
+        this.WhenAnyValue(x => x.GallerySearch, x => x.SelectedGame)
+            .Throttle(TimeSpan.FromMilliseconds(150))
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(_ => FilterGallery().FireAndForget())
+            .DisposeWith(CompositeDisposable);
         PickOutputCommand = ReactiveCommand.CreateFromTask(PickOutput);
         SelectAllNewCommand = ReactiveCommand.Create(() => SetAll(r => r.IsNew));
         SelectNoneCommand = ReactiveCommand.Create(() => SetAll(_ => false));
@@ -70,6 +107,10 @@ public partial class MergeVM : ViewModel
     }
 
     public ICommand PickBaseCommand { get; }
+    public ICommand BrowseBaseCommand { get; }
+    public ICommand BrowseOverlayCommand { get; }
+    public ICommand CloseGalleryCommand { get; }
+    public ICommand UseGalleryListCommand { get; }
     public ICommand PickOverlayCommand { get; }
     public ICommand PickOutputCommand { get; }
     public ICommand SelectAllNewCommand { get; }
@@ -100,12 +141,109 @@ public partial class MergeVM : ViewModel
     [Reactive] public partial bool IsBusy { get; set; }
     [Reactive] public partial bool IsReady { get; set; }
 
+    // The gallery picker, shown in place of the mod list while choosing a list from it.
+    [Reactive] public partial bool GalleryOpen { get; set; }
+    [Reactive] public partial string GalleryTitle { get; set; } = "";
+    [Reactive] public partial string GallerySearch { get; set; } = "";
+    [Reactive] public partial ObservableCollection<GameChoice> Games { get; set; } = new();
+    [Reactive] public partial GameChoice? SelectedGame { get; set; }
+    [Reactive] public partial ObservableCollection<GalleryListItem> GalleryLists { get; set; } = new();
+    [Reactive] public partial GalleryListItem? SelectedGalleryList { get; set; }
+    [Reactive] public partial string GalleryStatus { get; set; } = "";
+    private bool _galleryForBase;
+
     private async Task PickList(bool isBase)
     {
         var path = await _picker.PickFile(isBase ? "Choose the base Wabbajack file" : "Choose the overlay Wabbajack file",
             ("Wabbajack file", "*.wabbajack"));
         if (path == default) return;
+        await LoadList(isBase, path);
+    }
 
+    private async Task OpenGallery(bool isBase)
+    {
+        _galleryForBase = isBase;
+        GalleryTitle = isBase ? "Choose the base list" : "Choose the overlay list";
+        GalleryOpen = true;
+        if (_gallery.Count > 0)
+        {
+            await FilterGallery();
+            return;
+        }
+
+        GalleryStatus = "Loading the Wabbajack gallery…";
+        try
+        {
+            var lists = await Task.Run(() => _wjClient.LoadLists());
+            _gallery = lists.Where(l => !l.ForceDown && l.DownloadMetadata != null && l.Links?.Download is { Length: > 0 })
+                .OrderBy(l => l.Title, StringComparer.OrdinalIgnoreCase).ToList();
+            var games = _gallery.Select(l => l.Game).Distinct()
+                .Select(g => new GameChoice(g, g.MetaData().HumanFriendlyGameName))
+                .OrderBy(g => g.Name, StringComparer.OrdinalIgnoreCase).ToList();
+            Games = new ObservableCollection<GameChoice>(games.Prepend(new GameChoice(null, "All games")));
+            var preferred = (_base ?? _overlay)?.ModList.GameType;
+            SelectedGame = Games.FirstOrDefault(g => g.Game == preferred) ?? Games.First();
+            GalleryStatus = "";
+            await FilterGallery();
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Loading the gallery for merging");
+            GalleryStatus = $"Could not load the gallery: {e.Message}";
+        }
+    }
+
+    private Task FilterGallery()
+    {
+        if (!GalleryOpen || _gallery.Count == 0) return Task.CompletedTask;
+        var search = GallerySearch?.Trim() ?? "";
+        var game = SelectedGame?.Game;
+        var matching = _gallery.Where(l => (game == null || l.Game == game) &&
+                                           (search.Length == 0 ||
+                                            l.Title.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                                            l.Author.Contains(search, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+        // Whether the file is there is enough to show; whether it is the current version is checked on use.
+        var items = matching.Select(l => new GalleryListItem(l, _maintainer.ModListPath(l).FileExists())).ToList();
+        GalleryLists = new ObservableCollection<GalleryListItem>(items);
+        GalleryStatus = items.Count == 0 ? "No lists match." : "";
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    ///     Downloads the list's Wabbajack file (the definition, not its mods) into the same place the gallery
+    ///     keeps it, then loads it as the base or overlay.
+    /// </summary>
+    private async Task UseGalleryList(GalleryListItem item)
+    {
+        var path = _maintainer.ModListPath(item.Metadata);
+        try
+        {
+            if (!await _maintainer.HaveModList(item.Metadata))
+            {
+                IsBusy = true;
+                GalleryStatus = $"Downloading {item.Title}…";
+                var (progress, task) = _maintainer.DownloadModlist(item.Metadata, _token);
+                using var _ = progress.ObserveOn(RxApp.MainThreadScheduler)
+                    .Subscribe(p => GalleryStatus = $"Downloading {item.Title}… {p.Value * 100:0}%");
+                await task;
+                IsBusy = false;
+            }
+
+            GalleryOpen = false;
+            GalleryStatus = "";
+            await LoadList(_galleryForBase, path);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Downloading {List} for merging", item.Metadata.Links.MachineURL);
+            GalleryStatus = $"Could not download {item.Title}: {e.Message}";
+            IsBusy = false;
+        }
+    }
+
+    private async Task LoadList(bool isBase, AbsolutePath path)
+    {
         IsBusy = true;
         Status = $"Reading {path.FileName}…";
         try
