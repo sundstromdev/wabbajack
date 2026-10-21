@@ -159,6 +159,45 @@ public class ModlistMergerTests
     }
 
     [Fact]
+    public async Task AFrameworkIsNotADuplicateBecauseABaseModBundlesOneOfItsFiles()
+    {
+        // Wabbajack records a helper script a mod bundles as coming from the framework's own archive.
+        var bb = new ListBuilder("Base");
+        var engine = bb.NexusArchive("0-Engine.zip", 27967);
+        bb.ModFrom("Ultra Plus", engine, @"bin\x64\plugins\cyber_engine_tweaks\mods\UltraPlus\lib\Cron.lua");
+        var b = bb.Profile("P", "+Ultra Plus").Build();
+        var o = new ListBuilder("Ultraviolence").Mod("0-Engine", 27967,
+                @"bin\x64\plugins\cyber_engine_tweaks\mods\0-Engine\init.lua",
+                @"bin\x64\plugins\cyber_engine_tweaks\mods\0-Engine\external\Cron.lua")
+            .Profile("Q", "+0-Engine").Build();
+        var rules = new MergeRules
+        {
+            OverlayProfile = "Q", InsertAfter = "Ultra Plus", Include = new IncludeRules { Separators = { } , Mods = { } }
+        };
+        rules.Include.Mods.Add("0-Engine");
+        var (merged, report) = await ModlistMerger.Merge(b, o, rules);
+        Assert.True(merged.Installs(@"mods\0-Engine\bin\x64\plugins\cyber_engine_tweaks\mods\0-Engine\init.lua"));
+        Assert.DoesNotContain(report.Warnings, w => w.Contains("same Nexus mod"));
+        Assert.Equal(OverlayModStatus.New, MergePlanner.Analyse(b, o, "Q").Single().Status);
+    }
+
+    [Fact]
+    public async Task ACopyIsADuplicateEvenWhenOneFileIsRecordedFromAnotherMod()
+    {
+        var bb = new ListBuilder("THING");
+        var nci = bb.NexusArchive("NCI Core.zip", 5519);
+        bb.ModFrom("Night City Interactions - Core", nci, @"r6\scripts\NCI\nci.reds", @"archive\pc\mod\NCI.archive", @"bin\x64\NCI\init.lua");
+        var b = bb.Profile("P", "+Night City Interactions - Core").Build();
+        var ob = new ListBuilder("Ultraviolence");
+        var nci2 = ob.NexusArchive("NCI Core.zip", 5519);
+        var other = ob.NexusArchive("Deceptious.zip", 24404);
+        ob.ModFrom("NCI plus Edgerunners locales", nci2, @"r6\scripts\NCI\nci.reds", @"archive\pc\mod\NCI.archive")
+            .File(@"mods\NCI plus Edgerunners locales\bin\x64\NCI\init.lua", other, "init.lua");
+        var o = ob.Profile("Q", "+NCI plus Edgerunners locales").Build();
+        Assert.Equal(OverlayModStatus.Duplicate, MergePlanner.Analyse(b, o, "Q").Single().Status);
+    }
+
+    [Fact]
     public async Task NotSelectedModsAreReportedAndLeftOut()
     {
         var (b, o) = Lists();
@@ -224,6 +263,53 @@ public class ModlistMergerTests
         Assert.Equal(order, report.ArchiveLoadOrder);
         Assert.DoesNotContain("mapfix.archive", order);
         Assert.Equal("+UP Archive Load Order", merged.ProfileLines(BaseProfile)[14]);
+    }
+
+    [Fact]
+    public async Task AnArchiveOrderTheBaseAlreadyHasIsExtendedNotDuplicated()
+    {
+        var bb = new ListBuilder("Merged").Mod("A", 1, @"archive\pc\mod\a.archive")
+            .Inline(@"mods\UP Archive Load Order\archive\pc\mod\modlist.txt", "#Visual.archive\nOther.archive")
+            .Inline(@"mods\UP Archive Load Order\meta.ini", "[General]\r\n")
+            .Profile("P", "+A", "+UP Archive Load Order");
+        var b = bb.Build();
+        var o = new ListBuilder("Ultraviolence").Mod("Car", 2, @"archive\pc\mod\car.archive")
+            .Mod("Coat", 3, @"archive\pc\mod\coat.archive", @"archive\pc\mod\Other.archive")
+            .Profile("Q", "+Car", "+Coat").Build();
+        var rules = new MergeRules
+        {
+            OverlayProfile = "Q", InsertAfter = "A", Include = new IncludeRules { Mods = { "Car", "Coat" } },
+            CyberpunkArchiveLoadOrder = new CyberpunkArchiveLoadOrder { ModName = "UV Archive Load Order" }
+        };
+        var (merged, report) = await ModlistMerger.Merge(b, o, rules);
+
+        Assert.Equal("#Visual.archive\nOther.archive\ncar.archive\ncoat.archive",
+            merged.Text(@"mods\UP Archive Load Order\archive\pc\mod\modlist.txt"));
+        Assert.False(merged.Installs(@"mods\UV Archive Load Order\archive\pc\mod\modlist.txt"));
+        Assert.DoesNotContain("+UV Archive Load Order", merged.ProfileLines("P"));
+        Assert.Equal(new[] { "car.archive", "coat.archive" }, report.ArchiveLoadOrder);
+        Assert.Contains(report.Warnings, w => w.Contains("UP Archive Load Order"));
+    }
+
+    [Fact]
+    public async Task AnOverlaysOwnArchiveOrderIsFollowed()
+    {
+        var b = new ListBuilder("Base").Mod("A", 1, "a.txt").Profile("P", "+A").Build();
+        var o = new ListBuilder("Ultraviolence")
+            .Mod("X", 2, @"archive\pc\mod\x.archive")
+            .Mod("Y", 3, @"archive\pc\mod\y.archive")
+            .Mod("Z", 4, @"archive\pc\mod\z.archive")
+            .Inline(@"mods\UV Loadorder\archive\pc\mod\modlist.txt", "z.archive\r\nunrelated.archive\r\ny.archive")
+            .Inline(@"mods\UV Loadorder\meta.ini", "[General]\r\n")
+            .Profile("Q", "+X", "+Y", "+Z", "+UV Loadorder").Build();
+        var rules = new MergeRules
+        {
+            OverlayProfile = "Q", InsertAfter = "A", Include = new IncludeRules { Mods = { "X", "Y", "Z" } },
+            CyberpunkArchiveLoadOrder = new CyberpunkArchiveLoadOrder { ModName = "UV Archive Load Order" }
+        };
+        var (merged, _) = await ModlistMerger.Merge(b, o, rules);
+        Assert.Equal("z.archive\ny.archive\nx.archive",
+            merged.Text(@"mods\UV Archive Load Order\archive\pc\mod\modlist.txt"));
     }
 
     [Fact]

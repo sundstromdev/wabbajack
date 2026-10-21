@@ -40,6 +40,10 @@ public sealed class ModlistAnalysis
 
         foreach (var (folder, directives) in Folders)
         {
+            Paths[folder] = directives
+                .Select(d => TrySplitModPath(d.To, out _, out var inside) ? (string)inside : "")
+                .Where(p => p.Length > 0 && !Eq(p, MetaIni))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
             var keys = new HashSet<NexusKey>();
             var fromElsewhere = false;
             foreach (var d in directives)
@@ -75,6 +79,9 @@ public sealed class ModlistAnalysis
     public Dictionary<string, HashSet<NexusKey>> NexusMods { get; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, bool> HasNonNexusFiles { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Each mod folder's files, as paths inside the folder, without its meta.ini.</summary>
+    public Dictionary<string, HashSet<string>> Paths { get; } = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>A profile's mods, lowest priority first.</summary>
     public List<Mo2Entry> ProfileAscending(string profile, out List<string> comments)
     {
@@ -85,17 +92,29 @@ public sealed class ModlistAnalysis
     }
 
     /// <summary>
-    ///     Mod folders in this list made from the same Nexus mods as <paramref name="folder" /> of
-    ///     <paramref name="other" />, when every file of it came from Nexus mods this list has. Empty when it is
-    ///     not a duplicate.
+    ///     Mod folders in this list that are <paramref name="folder" /> of <paramref name="other" /> under another
+    ///     name: folders made from a Nexus mod it is made from, holding at least half of its files at the same
+    ///     paths. Empty when it is not a duplicate.
+    ///
+    ///     Neither test is enough alone, because Wabbajack shares identical files between archives. A mod that
+    ///     bundles one helper script from a framework is recorded as taking it from the framework's archive, so
+    ///     by Nexus id the framework would look installed; and a copy of a mod can be recorded as taking a file
+    ///     from some third mod's archive, so requiring every id to match would miss it.
     /// </summary>
     public List<string> DuplicatesOf(ModlistAnalysis other, string folder)
     {
         if (!other.NexusMods.TryGetValue(folder, out var keys) || keys.Count == 0 || other.HasNonNexusFiles[folder])
             return new List<string>();
-        var mine = Folders.Keys.Where(f => NexusMods[f].Overlaps(keys)).ToList();
-        var covered = mine.SelectMany(f => NexusMods[f]).ToHashSet();
-        return keys.IsSubsetOf(covered) ? mine.OrderBy(f => f, StringComparer.OrdinalIgnoreCase).ToList() : new List<string>();
+        var theirs = other.Paths[folder];
+        if (theirs.Count == 0) return new List<string>();
+
+        var mine = Folders.Keys.Where(f => NexusMods[f].Overlaps(keys) && Paths[f].Overlaps(theirs)).ToList();
+        if (mine.Count == 0) return new List<string>();
+
+        var present = theirs.Count(p => mine.Any(f => Paths[f].Contains(p)));
+        return present * 2 >= theirs.Count
+            ? mine.OrderBy(f => f, StringComparer.OrdinalIgnoreCase).ToList()
+            : new List<string>();
     }
 
     public string? NexusUrl(string folder)

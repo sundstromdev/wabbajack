@@ -26,6 +26,8 @@ public static class ModlistMerger
     private static readonly Type[] CopyableDirectives =
         { typeof(FromArchive), typeof(PatchedFromArchive), typeof(InlineFile), typeof(RemappedInlineFile) };
 
+    private const string LoadOrderFile = @"archive\pc\mod\modlist.txt";
+
     private static readonly MethodInfo CloneMethod =
         typeof(object).GetMethod("MemberwiseClone", BindingFlags.Instance | BindingFlags.NonPublic)!;
 
@@ -137,20 +139,42 @@ public static class ModlistMerger
         // Cyberpunk archive load order, as a mod of its own at the end of the block.
         if (rules.CyberpunkArchiveLoadOrder is { } lo)
         {
-            var order = ArchiveLoadOrder(o, rules, selected, report);
-            report.ArchiveLoadOrder.AddRange(order);
-            output.Add(await NewInline(ModPath(lo.ModName, (RelativePath)MetaIni),
-                Mo2ModList.Encode(MetaIniText($"Loads the archives of {o.ModList.Name} first, in its order. " +
-                                              "Every other archive loads alphabetically after them, as before."))));
-            output.Add(await NewInline(ModPath(lo.ModName, (RelativePath)@"archive\pc\mod\modlist.txt"),
-                Mo2ModList.Encode(string.Join("\n", order))));
-            block.Add(new Mo2Entry('+', lo.ModName));
-            report.Added.Add(new AddedMod(lo.ModName, lo.ModName, null, true, 2));
+            var order = ArchiveLoadOrder(o, rules, selected, overlayAsc, report);
 
-            var existing = b.Folders.Where(f => f.Value.Any(d =>
-                TrySplitModPath(d.To, out _, out var inside) && Eq((string)inside, @"archive\pc\mod\modlist.txt")));
-            foreach (var e in existing)
-                report.Warnings.Add($"{e.Key} in the base list also ships archive\\pc\\mod\\modlist.txt; whichever has priority decides the archive order");
+            // A base that already names an archive order (an earlier merge, or a list that ships one) keeps it:
+            // two modlist.txt files would hide one another, so the overlay's archives go on the end of it.
+            var existing = output.Where(d => d.GetType() == typeof(InlineFile) &&
+                                             TrySplitModPath(d.To, out var folder, out var inside) &&
+                                             b.Folders.ContainsKey(folder) && Eq((string)inside, LoadOrderFile))
+                .Cast<InlineFile>().ToList();
+            if (existing.Count > 0)
+            {
+                var target = existing[0];
+                TrySplitModPath(target.To, out var folder, out _);
+                var current = Mo2ModList.Decode(entries[(string)target.SourceDataID]).Split('\n')
+                    .Select(l => l.Trim('\r', ' ')).Where(l => l.Length > 0).ToList();
+                var listed = current.ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var appended = order.Where(listed.Add).ToList();
+                Replace(target, await NewInline(target.To, Mo2ModList.Encode(string.Join("\n", current.Concat(appended)))));
+                report.ArchiveLoadOrder.AddRange(appended);
+                report.Warnings.Add($"The base's archive load order in {folder} is kept: its {current.Count} archives load first, " +
+                                    $"then {appended.Count} from {o.ModList.Name}, then every other archive alphabetically");
+                if (existing.Count > 1)
+                    report.Warnings.Add($"The base ships more than one archive load order ({string.Join(", ", existing.Select(e => e.To))}); only {target.To} was extended");
+            }
+            else
+            {
+                if (b.Folders.ContainsKey(lo.ModName))
+                    problems.Add($"cyberpunkArchiveLoadOrder.modName {lo.ModName} is already a mod in the base list");
+                report.ArchiveLoadOrder.AddRange(order);
+                output.Add(await NewInline(ModPath(lo.ModName, (RelativePath)MetaIni),
+                    Mo2ModList.Encode(MetaIniText($"Loads the archives of {o.ModList.Name} first, in its order. " +
+                                                  "Every other archive loads alphabetically after them, as before."))));
+                output.Add(await NewInline(ModPath(lo.ModName, (RelativePath)LoadOrderFile),
+                    Mo2ModList.Encode(string.Join("\n", order))));
+                block.Add(new Mo2Entry('+', lo.ModName));
+                report.Added.Add(new AddedMod(lo.ModName, lo.ModName, null, true, 2));
+            }
         }
 
         // The block goes into each base profile; nothing already there moves.
@@ -299,8 +323,8 @@ public static class ModlistMerger
             problems.Add($"modRenames: more than one mod is renamed to {dupe.Key}");
         foreach (var (from, to) in rules.SeparatorRenames.Where(r => r.Value != null && !r.Value.EndsWith("_separator", StringComparison.OrdinalIgnoreCase)))
             problems.Add($"separatorRenames: {to} (for {from}) must end in _separator");
-        if (rules.CyberpunkArchiveLoadOrder is { } lo && (baseNames.Contains(lo.ModName) || mods.Contains(lo.ModName)))
-            problems.Add($"cyberpunkArchiveLoadOrder.modName {lo.ModName} is already a mod name");
+        if (rules.CyberpunkArchiveLoadOrder is { } lo && mods.Contains(lo.ModName))
+            problems.Add($"cyberpunkArchiveLoadOrder.modName {lo.ModName} is already an overlay mod name");
 
         if (problems.Count > 0) throw new MergeException(problems);
     }
@@ -413,7 +437,30 @@ public static class ModlistMerger
         return block;
     }
 
+    /// <summary>
+    ///     The chosen overlay archives in the order the overlay loads them: by the overlay's own archive
+    ///     modlist.txt when an enabled mod of it ships one (Ultraviolence does, Ultrapunk enforces Mod Organizer's
+    ///     order instead), and by Mod Organizer priority for whatever that file does not name.
+    /// </summary>
     private static List<string> ArchiveLoadOrder(ModlistAnalysis o, MergeRules rules, List<Selected> selected,
+        List<Mo2Entry> overlayAsc, MergeReport report)
+    {
+        var byPriority = ArchivesByPriority(o, rules, selected, report);
+        var enabled = overlayAsc.Where(e => e.Enabled).Select(e => e.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var own = o.ModList.Directives.FirstOrDefault(d => d.GetType() == typeof(InlineFile) &&
+                                                          TrySplitModPath(d.To, out var folder, out var inside) &&
+                                                          enabled.Contains(folder) && Eq((string)inside, LoadOrderFile));
+        if (own is not InlineFile ownFile) return byPriority;
+
+        var wanted = byPriority.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var result = Mo2ModList.Decode(o.Package.Data(ownFile.SourceDataID)).Split('\n')
+            .Select(l => l.Trim('\r', ' ')).Where(wanted.Contains).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var placed = result.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        result.AddRange(byPriority.Where(a => !placed.Contains(a)));
+        return result;
+    }
+
+    private static List<string> ArchivesByPriority(ModlistAnalysis o, MergeRules rules, List<Selected> selected,
         MergeReport report)
     {
         var order = new List<string>();
