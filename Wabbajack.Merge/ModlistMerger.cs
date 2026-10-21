@@ -193,6 +193,31 @@ public static class ModlistMerger
             }
 
             asc.InsertRange(rules.InsertBefore != null ? at : at + 1, block);
+            foreach (var (mod, after) in rules.PlaceAfter)
+            {
+                var moving = Mo2ModList.IndexOf(asc, NewModName(rules, mod));
+                if (moving < 0)
+                {
+                    // Not ticked this time: nothing to place, and not a reason to refuse the merge.
+                    if (firstProfile == null)
+                        report.Warnings.Add($"placeAfter: {mod} is not being added, so it was not placed after {after}");
+                    continue;
+                }
+
+                var entry = asc[moving];
+                asc.RemoveAt(moving);
+                var target = Mo2ModList.IndexOf(asc, after);
+                if (target < 0)
+                {
+                    problems.Add($"placeAfter: base profile {profile} has no entry {after} to put {mod} after");
+                    asc.Insert(moving, entry);
+                    continue;
+                }
+
+                asc.Insert(target + 1, entry);
+                if (firstProfile == null)
+                    report.Warnings.Add($"{entry.Name} was placed directly after {after} instead of in the block, so its files win over it");
+            }
             Replace(directive, await NewInline(path, Mo2ModList.Encode(Mo2ModList.WriteAscending(asc, comments))));
             firstProfile ??= asc;
         }
@@ -309,6 +334,7 @@ public static class ModlistMerger
         Need(rules.Include.Separators, seps, "separator", "include.separators");
         Need(rules.Exclude, mods, "mod", "exclude");
         Need(rules.ModRenames.Keys, mods, "mod", "modRenames");
+        Need(rules.PlaceAfter.Keys, mods, "mod", "placeAfter");
         Need(rules.FileFilters.Keys, mods, "mod", "fileFilters");
         Need(rules.SeparatorRenames.Keys, seps, "separator", "separatorRenames");
 

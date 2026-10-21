@@ -198,6 +198,41 @@ public class ModlistMergerTests
     }
 
     [Fact]
+    public async Task PlaceAfterLetsAnOverlayModOverrideABaseMod()
+    {
+        var bb = new ListBuilder("THING");
+        var eqx = bb.NexusArchive("Equipment-EX.zip", 6945);
+        bb.Separator("Utility_separator").ModFrom("Equipment-EX", eqx, @"r6\scripts\EquipmentEx\EquipmentEx.reds")
+            .Separator("Gameplay_separator").Mod("Much Better AI", 500, "ai.reds");
+        var b = bb.Profile("P", "+Utility_separator", "+Equipment-EX", "+Gameplay_separator", "+Much Better AI").Build();
+        var o = new ListBuilder("Ultraviolence")
+            .Mod("WEAVE", 28273, @"r6\scripts\EquipmentEx\EquipmentEx.reds", @"r6\scripts\WEAVE\weave.reds")
+            .Mod("Coat", 3, "coat.archive")
+            .Profile("Q", "+WEAVE", "+Coat").Build();
+        var rules = new MergeRules
+        {
+            OverlayProfile = "Q", InsertBefore = "Gameplay_separator",
+            Include = new IncludeRules { Mods = { "WEAVE", "Coat" } },
+            PlaceAfter = { ["WEAVE"] = "Equipment-EX" }
+        };
+        var (merged, report) = await ModlistMerger.Merge(b, o, rules);
+        Assert.Equal(new[] { "+Utility_separator", "+Equipment-EX", "+WEAVE", "+Coat", "+Gameplay_separator", "+Much Better AI" },
+            merged.ProfileLines("P"));
+        var c = Assert.Single(report.Conflicts);
+        Assert.Equal("WEAVE", c.Winner);
+        Assert.Contains(report.Warnings, w => w.Contains("placed directly after Equipment-EX"));
+
+        rules.Include.Mods.Remove("WEAVE");
+        (_, report) = await ModlistMerger.Merge(b, o, rules);
+        Assert.Contains(report.Warnings, w => w.Contains("WEAVE is not being added"));
+        rules.Include.Mods.Add("WEAVE");
+
+        rules.PlaceAfter["WEAVE"] = "Nope";
+        var e = await Assert.ThrowsAsync<MergeException>(() => ModlistMerger.Merge(b, o, rules));
+        Assert.Contains("Nope", e.Message);
+    }
+
+    [Fact]
     public async Task NotSelectedModsAreReportedAndLeftOut()
     {
         var (b, o) = Lists();

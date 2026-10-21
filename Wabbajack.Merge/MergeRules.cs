@@ -58,6 +58,13 @@ public sealed class MergeRules
     /// </summary>
     public Dictionary<string, string?> SeparatorRenames { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    ///     Overlay mod to the base mod or separator it goes directly after, outside the block: for a mod made to
+    ///     override a base mod's files (WEAVE replaces Equipment-EX's script), which has to sit above it in
+    ///     priority. Keyed by the overlay mod's original name.
+    /// </summary>
+    public Dictionary<string, string> PlaceAfter { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Overlay mod name to the folder name it gets in the merge.</summary>
     public Dictionary<string, string> ModRenames { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -99,6 +106,7 @@ public sealed class MergeRules
     {
         SeparatorRenames = new Dictionary<string, string?>(SeparatorRenames ?? new(), StringComparer.OrdinalIgnoreCase);
         ModRenames = new Dictionary<string, string>(ModRenames ?? new(), StringComparer.OrdinalIgnoreCase);
+        PlaceAfter = new Dictionary<string, string>(PlaceAfter ?? new(), StringComparer.OrdinalIgnoreCase);
         FileFilters = new Dictionary<string, FileFilter>(FileFilters ?? new(), StringComparer.OrdinalIgnoreCase);
         BaseProfiles ??= new List<string>();
         Exclude ??= new List<string>();
