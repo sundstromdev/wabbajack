@@ -21,6 +21,7 @@ using Wabbajack.App.Avalonia.Util;
 using Wabbajack.App.Avalonia.ViewModels.Compiler;
 using Wabbajack.App.Avalonia.ViewModels.Gallery;
 using Wabbajack.App.Avalonia.ViewModels.Installers;
+using Wabbajack.App.Avalonia.ViewModels.Merge;
 using Wabbajack.App.Avalonia.ViewModels.Settings;
 using Wabbajack.Common;
 using Wabbajack.Networking.WabbajackClientApi;
@@ -35,6 +36,7 @@ public partial class MainWindowVM : ViewModel
     private SettingsVM? _settings;
     private ModListGalleryVM? _gallery;
     private CompilerHomeVM? _compilerHome;
+    private MergeVM? _merge;
     private readonly CompilerMainVM _compiler;
     private readonly InfoVM _info;
     private readonly FileUploadVM _fileUpload;
@@ -318,6 +320,7 @@ public partial class MainWindowVM : ViewModel
             ScreenType.Settings => _settings ??= _services.GetRequiredService<SettingsVM>(),
             ScreenType.Installer => _installer,
             ScreenType.Info => _info,
+            ScreenType.Merge => _merge ??= _services.GetRequiredService<MergeVM>(),
             _ => ActivePane
         };
     }

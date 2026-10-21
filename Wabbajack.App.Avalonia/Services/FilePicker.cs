@@ -51,6 +51,27 @@ public class FilePicker
         return folders.FirstOrDefault()?.TryGetLocalPath() is { } path ? path.ToAbsolutePath() : default;
     }
 
+    /// <summary>
+    ///     A file to write, opened beside <paramref name="current" /> when that has a folder that exists, with
+    ///     <paramref name="suggestedName" /> filled in. The system dialog asks before replacing an existing file.
+    /// </summary>
+    public async Task<AbsolutePath> PickSaveFile(string title, AbsolutePath current, string suggestedName,
+        params (string Name, string Pattern)[] filters)
+    {
+        if (Storage is not { } storage) return default;
+
+        var file = await storage.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = title,
+            SuggestedFileName = suggestedName,
+            SuggestedStartLocation = await StartFolder(storage, current == default ? default : current.Parent),
+            ShowOverwritePrompt = true,
+            FileTypeChoices = filters.Select(f => new FilePickerFileType(f.Name) { Patterns = [f.Pattern] }).ToList()
+        });
+
+        return file?.TryGetLocalPath() is { } path ? path.ToAbsolutePath() : default;
+    }
+
     private static async Task<IStorageFolder?> StartFolder(IStorageProvider storage, AbsolutePath folder)
     {
         if (folder == default || !folder.DirectoryExists()) return null;

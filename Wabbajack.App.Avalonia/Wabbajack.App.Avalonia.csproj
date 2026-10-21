@@ -78,6 +78,7 @@
         <ProjectReference Include="..\Wabbajack.Networking.Steam\Wabbajack.Networking.Steam.csproj" />
         <ProjectReference Include="..\Wabbajack.Networking.Bethesda\Wabbajack.Networking.Bethesda.csproj" />
         <!-- The installer's failure screen: the log diagnosis and the article it opens. -->
+        <ProjectReference Include="..\Wabbajack.Merge\Wabbajack.Merge.csproj" />
         <ProjectReference Include="..\Wabbajack.Reporting\Wabbajack.Reporting.csproj" />
         <!-- Not Wabbajack.CLI, although Settings launches it: that project is net10.0-windows and this one is
              not. An install ships the CLI in its "cli" folder, which is where the button looks. -->

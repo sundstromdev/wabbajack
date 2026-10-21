@@ -1,0 +1,150 @@
+<rxui:ReactiveUserControl xmlns="https://github.com/avaloniaui"
+                          xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                          xmlns:rxui="http://reactiveui.net"
+                          xmlns:c="using:Wabbajack.App.Avalonia.Controls"
+                          xmlns:vm="using:Wabbajack.App.Avalonia.ViewModels.Merge"
+                          x:Class="Wabbajack.App.Avalonia.Views.Merge.MergeView"
+                          x:TypeArguments="vm:MergeVM"
+                          x:DataType="vm:MergeVM">
+    <!--
+        Merge lists. Left: the two Wabbajack files, the overlay profile, where the overlay block goes, and where
+        the result is written. Right: every mod of the overlay profile under its separator, ticked to bring in.
+    -->
+    <UserControl.Styles>
+        <Style Selector="TextBlock.title">
+            <Setter Property="Margin" Value="0,16,0,6" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="Opacity" Value="0.6" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style Selector="Border.box">
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="Background" Value="{StaticResource ComplementaryPrimary08Brush}" />
+        </Style>
+        <Style Selector="ListBox.mods ListBoxItem">
+            <Setter Property="Padding" Value="8,2" />
+            <Setter Property="MinHeight" Value="0" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid ColumnDefinitions="400,16,*">
+        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="0,0,8,0">
+                <TextBlock FontSize="22" FontWeight="Bold" Text="Merge lists" />
+                <TextBlock Classes="hint" Margin="0,4,0,0"
+                           Text="Keeps everything in the base list as it is and adds the overlay mods you tick, as one block. Mods both lists have stay the base list's." />
+
+                <TextBlock Classes="title" Text="Base list" />
+                <Grid ColumnDefinitions="*,Auto">
+                    <Border Classes="box">
+                        <TextBlock Text="{Binding BaseTitle}" TextWrapping="Wrap" />
+                    </Border>
+                    <c:WJButton Grid.Column="1" Margin="8,0,0,0" Icon="FolderOpen" Text="Choose"
+                                AutomationProperties.AutomationId="PickBaseButton" Command="{Binding PickBaseCommand}" />
+                </Grid>
+
+                <TextBlock Classes="title" Text="Overlay list" />
+                <Grid ColumnDefinitions="*,Auto">
+                    <Border Classes="box">
+                        <TextBlock Text="{Binding OverlayTitle}" TextWrapping="Wrap" />
+                    </Border>
+                    <c:WJButton Grid.Column="1" Margin="8,0,0,0" Icon="FolderOpen" Text="Choose"
+                                AutomationProperties.AutomationId="PickOverlayButton" Command="{Binding PickOverlayCommand}" />
+                </Grid>
+
+                <TextBlock Classes="title" Text="Overlay profile" />
+                <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding OverlayProfiles}"
+                          SelectedItem="{Binding SelectedOverlayProfile}" AutomationProperties.AutomationId="OverlayProfile" />
+                <TextBlock Classes="hint" Margin="0,4,0,0"
+                           Text="Its order and which mods it has switched on are copied, so pick the tier you would install (VRAM, say)." />
+
+                <TextBlock Classes="title" Text="Put the overlay mods" />
+                <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding Placements}"
+                          SelectedIndex="{Binding PlacementIndex}" />
+                <ComboBox Margin="0,8,0,0" HorizontalAlignment="Stretch" MaxDropDownHeight="500"
+                          ItemsSource="{Binding Anchors}" SelectedItem="{Binding SelectedAnchor}"
+                          PlaceholderText="Choose a base mod or separator" AutomationProperties.AutomationId="Anchor">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:AnchorItem">
+                            <TextBlock Text="{Binding Display}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+                <TextBlock Classes="hint" Margin="0,4,0,0"
+                           Text="Mods lower in Mod Organizer win file conflicts. Placing the block above the base list's gameplay keeps its files in charge." />
+
+                <TextBlock Classes="title" Text="Separator prefix" />
+                <TextBox Text="{Binding SeparatorPrefix}" Watermark="Prefix for the overlay's separators, e.g. UP" />
+
+                <CheckBox Margin="0,16,0,0" IsVisible="{Binding IsCyberpunk}" IsChecked="{Binding ArchiveLoadOrder}">
+                    <TextBlock TextWrapping="Wrap"
+                               Text="Load the overlay's archives first, in its order (the base list's archives keep their order)" />
+                </CheckBox>
+
+                <TextBlock Classes="title" Text="Write to" />
+                <Grid ColumnDefinitions="*,Auto">
+                    <Border Classes="box">
+                        <TextBlock Text="{Binding OutputText}" TextWrapping="Wrap" />
+                    </Border>
+                    <c:WJButton Grid.Column="1" Margin="8,0,0,0" Icon="Folder" Text="Change"
+                                Command="{Binding PickOutputCommand}" />
+                </Grid>
+
+                <Grid Margin="0,16,0,0" ColumnDefinitions="*,8,*">
+                    <c:WJButton Grid.Column="0" Width="NaN" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                Icon="DocumentArrowUp" Text="Load rules" ToolTip.Tip="Load a rules file saved here or used with the CLI's merge-modlists"
+                                Command="{Binding LoadRulesCommand}" />
+                    <c:WJButton Grid.Column="2" Width="NaN" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                Icon="Document" Text="Save rules" ToolTip.Tip="Save these choices to redo the merge when either list updates"
+                                Command="{Binding SaveRulesCommand}" />
+                </Grid>
+                <c:WJButton Margin="0,8,0,0" Width="NaN" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                            ButtonStyle="Color" Icon="BranchFork" Text="Merge"
+                            AutomationProperties.AutomationId="MergeButton" Command="{Binding MergeCommand}" />
+
+                <TextBlock Margin="0,12,0,0" TextWrapping="Wrap" FontWeight="SemiBold" Text="{Binding Status}" />
+                <SelectableTextBlock Margin="0,8,0,0" TextWrapping="Wrap" FontSize="12" Text="{Binding Report}"
+                                     IsVisible="{Binding Report, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                <TextBox Watermark="Filter mods…" Text="{Binding Filter}" AutomationProperties.AutomationId="ModFilter" />
+                <CheckBox Grid.Column="1" Margin="12,0,0,0" IsChecked="{Binding OnlyNew}">
+                    <TextBlock Text="Only new" />
+                </CheckBox>
+                <c:WJButton Grid.Column="2" Margin="12,0,0,0" Icon="Checkmark" Text="All new"
+                            Command="{Binding SelectAllNewCommand}" />
+                <c:WJButton Grid.Column="3" Margin="8,0,0,0" Icon="Dismiss" Text="None"
+                            Command="{Binding SelectNoneCommand}" />
+            </Grid>
+            <TextBlock Grid.Row="1" Classes="hint" Margin="0,8" Text="{Binding SelectionSummary}" />
+
+            <ListBox Grid.Row="2" Classes="mods" ItemsSource="{Binding Rows}" Background="Transparent"
+                     SelectionMode="Single" AutomationProperties.AutomationId="OverlayMods">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:MergeModRowVM">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <CheckBox Grid.Column="0" IsThreeState="{Binding IsHeader}" IsChecked="{Binding IsChecked}"
+                                      IsEnabled="{Binding CanCheck}" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding Display}"
+                                       TextTrimming="CharacterEllipsis"
+                                       FontWeight="{Binding IsHeader, Converter={x:Static vm:MergeConverters.HeaderWeight}}"
+                                       FontSize="{Binding IsHeader, Converter={x:Static vm:MergeConverters.HeaderSize}}"
+                                       Opacity="{Binding CanCheck, Converter={x:Static vm:MergeConverters.TakeableOpacity}}" />
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <TextBlock Classes="hint" Text="off in overlay" IsVisible="{Binding IsDisabledInOverlay}" />
+                                <TextBlock Classes="hint" Text="{Binding StatusText}" />
+                            </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Grid>
+    </Grid>
+</rxui:ReactiveUserControl>

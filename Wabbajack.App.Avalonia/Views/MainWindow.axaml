@@ -10,6 +10,8 @@
         xmlns:cv="using:Wabbajack.App.Avalonia.Views.Compiler"
         xmlns:installers="using:Wabbajack.App.Avalonia.ViewModels.Installers"
         xmlns:iv="using:Wabbajack.App.Avalonia.Views.Installers"
+        xmlns:merge="using:Wabbajack.App.Avalonia.ViewModels.Merge"
+        xmlns:mv="using:Wabbajack.App.Avalonia.Views.Merge"
         xmlns:svc="using:Wabbajack.App.Avalonia.Services"
         xmlns:conv="using:Wabbajack.App.Avalonia.Converters"
         xmlns:c="using:Wabbajack.App.Avalonia.Controls"
@@ -121,7 +123,7 @@
 
             <Grid x:Name="MainArea" Grid.Row="1" ColumnDefinitions="115,*">
                 <!-- The nav rail. -->
-                <Grid x:Name="NavRail" Grid.Column="0" RowDefinitions="Auto,8,Auto,8,Auto,*,Auto,Auto">
+                <Grid x:Name="NavRail" Grid.Column="0" RowDefinitions="Auto,8,Auto,8,Auto,8,Auto,*,Auto,Auto">
                     <Button Grid.Row="0" Classes="main nav"
                             Classes.active="{Binding ActiveScreen, Converter={x:Static conv:ScreenIsConverter.Instance}, ConverterParameter={x:Static svc:ScreenType.Home}}"
                             AutomationProperties.AutomationId="HomeButton" AutomationProperties.Name="Home"
@@ -140,13 +142,19 @@
                             Command="{Binding NavigateCommand}" CommandParameter="{x:Static svc:ScreenType.CompilerHome}">
                         <v:NavItem Symbol="Toolbox" Text="Create a list" />
                     </Button>
-                    <Button Grid.Row="6" Classes="main nav" Padding="12"
+                    <Button Grid.Row="6" Classes="main nav"
+                            Classes.active="{Binding ActiveScreen, Converter={x:Static conv:ScreenIsConverter.Instance}, ConverterParameter={x:Static svc:ScreenType.Merge}}"
+                            AutomationProperties.AutomationId="MergeButton" AutomationProperties.Name="Merge lists"
+                            Command="{Binding NavigateCommand}" CommandParameter="{x:Static svc:ScreenType.Merge}">
+                        <v:NavItem Symbol="BranchFork" Text="Merge lists" />
+                    </Button>
+                    <Button Grid.Row="8" Classes="main nav" Padding="12"
                             Classes.active="{Binding ActiveScreen, Converter={x:Static conv:ScreenIsConverter.Instance}, ConverterParameter={x:Static svc:ScreenType.Settings}}"
                             AutomationProperties.AutomationId="SettingsButton" AutomationProperties.Name="Settings"
                             Command="{Binding NavigateCommand}" CommandParameter="{x:Static svc:ScreenType.Settings}">
                         <v:NavItem Symbol="Settings" Text="Settings" />
                     </Button>
-                    <TextBlock Grid.Row="7" FontSize="12" HorizontalAlignment="Center" Margin="0,10"
+                    <TextBlock Grid.Row="9" FontSize="12" HorizontalAlignment="Center" Margin="0,10"
                                Opacity="0.66" Text="{Binding Version}" />
                 </Grid>
 
@@ -179,6 +187,9 @@
                                 </DataTemplate>
                                 <DataTemplate DataType="installers:InstallationVM">
                                     <iv:InstallationView />
+                                </DataTemplate>
+                                <DataTemplate DataType="merge:MergeVM">
+                                    <mv:MergeView />
                                 </DataTemplate>
                             </ContentControl.DataTemplates>
                         </ContentControl>

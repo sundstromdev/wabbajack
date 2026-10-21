@@ -48,29 +48,27 @@ public static class MergePlanner
         sb.AppendLine();
 
         string? sep = null;
-        foreach (var e in o.ProfileAscending(profile, out _))
+        foreach (var m in Analyse(b, o, profile))
         {
-            if (e.IsSeparator)
+            if (m.Separator != sep)
             {
-                sep = e.Name;
-                sb.AppendLine();
-                sb.AppendLine($"## {e.Name[..^"_separator".Length]}");
-                continue;
+                sep = m.Separator;
+                if (sep != null)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine($"## {sep[..^"_separator".Length]}");
+                }
             }
 
-            if (e.State == '*') continue;
-            string status;
-            if (b.Folders.ContainsKey(e.Name)) status = "[shared]";
-            else if (!o.Folders.ContainsKey(e.Name)) status = "[no files]";
-            else if (b.DuplicatesOf(o, e.Name) is { Count: > 0 } d) status = $"[duplicate of {string.Join(", ", d)}]";
-            else
+            var status = m.Status switch
             {
-                status = "[new]";
-                rules.Include.Mods.Add(e.Name);
-            }
-
-            var url = o.NexusUrl(e.Name);
-            sb.AppendLine($"- {status} {(e.Enabled ? "" : "(disabled) ")}{(url == null ? e.Name : $"[{e.Name}]({url})")}");
+                OverlayModStatus.Shared => "[shared]",
+                OverlayModStatus.NoFiles => "[no files]",
+                OverlayModStatus.Duplicate => $"[duplicate of {string.Join(", ", m.DuplicateOf)}]",
+                _ => "[new]"
+            };
+            if (m.Status == OverlayModStatus.New) rules.Include.Mods.Add(m.Name);
+            sb.AppendLine($"- {status} {(m.Enabled ? "" : "(disabled) ")}{(m.NexusUrl == null ? m.Name : $"[{m.Name}]({m.NexusUrl})")}");
         }
 
         sb.AppendLine();
@@ -81,6 +79,40 @@ public static class MergePlanner
         return (rules, sb.ToString());
     }
 
+    /// <summary>Every overlay mod in the profile, lowest priority first, with what the base list already has of it.</summary>
+    public static List<OverlayMod> Analyse(ModlistPackage basePackage, ModlistPackage overlayPackage, string overlayProfile) =>
+        Analyse(new ModlistAnalysis(basePackage), new ModlistAnalysis(overlayPackage), overlayProfile);
+
+    /// <summary>A base profile's entries, lowest priority first: the places an overlay block can go.</summary>
+    public static List<Mo2Entry> BaseEntries(ModlistPackage basePackage, string profile) =>
+        new ModlistAnalysis(basePackage).ProfileAscending(profile, out _);
+
+    public static IReadOnlyCollection<string> Profiles(ModlistPackage package) => new ModlistAnalysis(package).Profiles;
+
+    private static List<OverlayMod> Analyse(ModlistAnalysis b, ModlistAnalysis o, string profile)
+    {
+        var result = new List<OverlayMod>();
+        string? sep = null;
+        foreach (var e in o.ProfileAscending(profile, out _))
+        {
+            if (e.IsSeparator)
+            {
+                sep = e.Name;
+                continue;
+            }
+
+            if (e.State == '*') continue;
+            var dupes = new List<string>();
+            var status = b.Folders.ContainsKey(e.Name) ? OverlayModStatus.Shared
+                : !o.Folders.ContainsKey(e.Name) ? OverlayModStatus.NoFiles
+                : (dupes = b.DuplicatesOf(o, e.Name)).Count > 0 ? OverlayModStatus.Duplicate
+                : OverlayModStatus.New;
+            result.Add(new OverlayMod(e.Name, sep, e.Enabled, status, dupes, o.NexusUrl(e.Name)));
+        }
+
+        return result;
+    }
+
     private static string Initials(string name)
     {
         var words = name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(w => char.IsLetterOrDigit(w[0])).ToList();
@@ -88,3 +120,21 @@ public static class MergePlanner
         return initials.Length is >= 2 and <= 4 ? initials : "Overlay";
     }
 }
+
+public enum OverlayModStatus
+{
+    /// <summary>Not in the base list in any form: what a merge is for.</summary>
+    New,
+
+    /// <summary>The base list has a mod folder of the same name; the base copy is always kept.</summary>
+    Shared,
+
+    /// <summary>Made from Nexus mods the base list already has, under another folder name.</summary>
+    Duplicate,
+
+    /// <summary>In the overlay profile but with no files in the list.</summary>
+    NoFiles
+}
+
+public sealed record OverlayMod(string Name, string? Separator, bool Enabled, OverlayModStatus Status,
+    IReadOnlyList<string> DuplicateOf, string? NexusUrl);
