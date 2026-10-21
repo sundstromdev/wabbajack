@@ -326,13 +326,33 @@ public partial class MergeVM : ViewModel
             SelectedAnchor = PreferredAnchor() ?? SelectedAnchor;
             foreach (var row in _allRows.Where(r => !r.IsHeader)) row.IsChecked = false;
             ApplyTemplateSelection(new HashSet<string>());
-            Status = $"Loaded {path.FileName}";
+            Status = DescribeLoadedRules(path);
         }
         catch (Exception e)
         {
             _template = null;
             Status = e is MergeException ? e.Message : $"Could not read {path.FileName}: {e.Message}";
         }
+    }
+
+    /// <summary>
+    ///     Says how much of a loaded rules file fits the lists on screen, since a rules file for another overlay
+    ///     loads without complaint and simply ticks almost nothing.
+    /// </summary>
+    private string DescribeLoadedRules(AbsolutePath path)
+    {
+        if (_template == null) return "";
+        var mods = _allRows.Where(r => !r.IsHeader).Select(r => r.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var named = _template.Include.Mods.Count;
+        var found = _template.Include.Mods.Count(mods.Contains);
+        var ticked = _allRows.Count(r => !r.IsHeader && r.IsChecked == true);
+        var wrongProfile = _template.OverlayProfile is { Length: > 0 } p && OverlayProfiles.Count > 0 && !OverlayProfiles.Contains(p);
+        if (_overlay != null && (wrongProfile || (named > 0 && found * 2 < named)))
+            return $"⚠ {path.FileName} looks like it is for another overlay" +
+                   (wrongProfile ? $" (it asks for profile \"{_template.OverlayProfile}\")" : "") +
+                   $": only {found} of the {named} mods it names are in {_overlay.ModList.Name}. Check you picked the right rules file.";
+        return $"Loaded {path.FileName}: {ticked} mods ticked" +
+               (found < named ? $"; {named - found} it names are not in this overlay" : "");
     }
 
     private async Task SaveRules()
