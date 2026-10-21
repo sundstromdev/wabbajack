@@ -122,9 +122,9 @@ public static class ModlistMerger
                 var text = Mo2ModList.Decode(entries[(string)((InlineFile)target).SourceDataID]);
                 try
                 {
-                    var (merged, added) = IniSections.AppendMissing(text, source, append.Sections);
+                    var (appended, added) = IniSections.AppendMissing(text, source, append.Sections);
                     if (added.Count == 0) continue;
-                    Replace(target, await NewInline(target.To, Mo2ModList.Encode(merged)));
+                    Replace(target, await NewInline(target.To, Mo2ModList.Encode(appended)));
                     report.IniSectionsAdded.Add($"{to}: {string.Join(", ", added.Select(a => $"[{a}]"))}");
                 }
                 catch (MergeException e)
