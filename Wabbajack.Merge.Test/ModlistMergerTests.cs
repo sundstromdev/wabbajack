@@ -163,7 +163,7 @@ public class ModlistMergerTests
     {
         // Wabbajack records a helper script a mod bundles as coming from the framework's own archive.
         var bb = new ListBuilder("Base");
-        var engine = bb.NexusArchive("0-Engine.zip", 27967);
+        var engine = bb.NexusArchive("0-Engine Pure CET-27967-0-18-6.zip", 27967);
         bb.ModFrom("Ultra Plus", engine, @"bin\x64\plugins\cyber_engine_tweaks\mods\UltraPlus\lib\Cron.lua");
         var b = bb.Profile("P", "+Ultra Plus").Build();
         var o = new ListBuilder("Ultraviolence").Mod("0-Engine", 27967,
